@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <title>Flashcards with Input</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Tailwind (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     input:focus, select:focus, button:focus { outline: 2px solid #000; outline-offset: 2px; }
@@ -13,26 +12,23 @@
 </head>
 <body class="bg-gray-50 p-6">
   <div class="max-w-3xl mx-auto">
-    <h1 class="text-3xl font-bold mb-4">Flashcards with Input</h1>
+    <h1 class="text-3xl font-bold mb-4">Flashcards</h1>
 
     <!-- Add / Import / Export -->
     <section class="bg-white p-4 rounded-xl shadow mb-6">
       <h2 class="font-semibold mb-3">Add a Card</h2>
       <div class="grid gap-2">
         <input id="front" class="w-full border rounded p-2" placeholder="Front (e.g., 日)">
-        <input id="back" class="w-full border rounded p-2" placeholder="Back (answers to type, e.g., sun, day)">
+        <input id="back" class="w-full border rounded p-2" placeholder="Back answers (e.g., sun, day)">
         <input id="example" class="w-full border rounded p-2" placeholder="Example (optional, e.g., 日本 (にほん) – Japan)">
         <label class="flex items-center gap-2 text-sm">
           <input type="checkbox" id="reverse" checked> Also create reverse card
         </label>
         <div class="flex gap-2">
           <button id="addBtn" class="px-4 py-2 rounded bg-black text-white">Add</button>
-
           <label class="px-4 py-2 rounded bg-gray-100 border cursor-pointer">
-            Import JSON
-            <input id="importFile" type="file" accept="application/json" class="hidden">
+            Import JSON <input id="importFile" type="file" accept="application/json" class="hidden">
           </label>
-
           <button id="exportBtn" class="px-4 py-2 rounded bg-gray-900 text-white">Export JSON</button>
         </div>
         <p class="text-xs text-gray-500">
@@ -53,13 +49,11 @@
         </select>
         <button id="startBtn" class="ml-auto px-4 py-2 rounded bg-black text-white">Start / Shuffle</button>
       </div>
-
       <div id="cardArea" class="hidden">
         <div class="text-sm text-gray-500 mb-1">
           Cards left: <span id="leftCount">0</span>
         </div>
         <div id="prompt" class="text-2xl font-semibold mb-3"></div>
-
         <input id="answerInput" class="w-full border rounded p-2 mb-2"
                placeholder="Type your answer… (Enter = Check / Next)">
         <div id="result" class="mt-3"></div>
@@ -77,25 +71,33 @@
   </div>
 
 <script>
-/* ------------------ Storage & State ------------------ */
+/* ================= Storage & State ================= */
 let cards = JSON.parse(localStorage.getItem("cards") || "[]");
-// If no cards exist in localStorage, auto-load kanji.json
-if (!localStorage.getItem("cards")) {
-  fetch("kanji.json")
-    .then(res => res.json())
-    .then(data => {
-      cards = data;
-      save();
-      renderList();
-    })
-    .catch(err => console.error("Error loading default deck:", err));
-}
+
+// Auto-load kanji.json on first visit (GitHub Pages, same folder)
+(async function init() {
+  try {
+    if (!localStorage.getItem("cards")) {
+      const res = await fetch("kanji.json", { cache: "no-store" });
+      if (!res.ok) throw new Error("kanji.json not found");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        cards = data;
+        save();
+      }
+    }
+  } catch (e) {
+    console.warn("Auto-load skipped:", e.message);
+  }
+  renderList();
+})();
+
 let queue = [];
 let current = null;
 let currentSide = "front";
 let lastChecked = false;
 
-/* ------------------ Helpers ------------------ */
+/* ================= Helpers ================= */
 function save() {
   localStorage.setItem("cards", JSON.stringify(cards));
   renderList();
@@ -104,11 +106,18 @@ function normalize(s) {
   return (s || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 function splitAnswers(s) {
-  // Split multiple English answers like "sun, day" or "sun / day"
+  // Allow: comma, semicolon, slash, or the word "or"
   return (s || "")
     .split(/[,;/]|(?:\s+or\s+)/i)
     .map(a => normalize(a))
     .filter(Boolean);
+}
+// Pull Japanese tokens (kanji/kana) out of example: 日本, にほん, etc.
+function japaneseFromExample(example) {
+  if (!example) return [];
+  const JP_RE = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+/g; // hiragana/katakana/kanji
+  const matches = example.match(JP_RE) || [];
+  return [...new Set(matches.map(s => s.trim()).filter(Boolean))];
 }
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -117,23 +126,15 @@ function shuffle(arr) {
   }
   return arr;
 }
-// Extract Japanese tokens (kanji/kana) from example text: e.g., "日本 (にほん) – Japan"
-function japaneseFromExample(example) {
-  if (!example) return [];
-  const JP_RE = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+/g; // hiragana/katakana/kanji
-  const matches = example.match(JP_RE) || [];
-  // Keep unique tokens
-  return [...new Set(matches.map(s => s.trim()).filter(Boolean))];
-}
 
-/* ------------------ UI elements ------------------ */
-const listEl = document.getElementById("cardList");
+/* ================= UI Elements ================= */
+const listEl   = document.getElementById("cardList");
 const promptEl = document.getElementById("prompt");
 const resultEl = document.getElementById("result");
-const leftEl = document.getElementById("leftCount");
-const inputEl = document.getElementById("answerInput");
+const leftEl   = document.getElementById("leftCount");
+const inputEl  = document.getElementById("answerInput");
 
-/* ------------------ Render list ------------------ */
+/* ================= Render list ================= */
 function renderList() {
   listEl.innerHTML = "";
   if (!cards.length) {
@@ -141,16 +142,15 @@ function renderList() {
     return;
   }
   cards.forEach((c, i) => {
+    const ex = c.example ? ` <span class="text-gray-500">| ${c.example}</span>` : "";
     const li = document.createElement("li");
     li.className = "flex justify-between items-center gap-2";
-    const ex = c.example ? ` <span class="text-gray-500">| ${c.example}</span>` : "";
     li.innerHTML = `<span>${i+1}. <b>${c.front}</b> → ${c.back}${ex}</span>`;
     listEl.appendChild(li);
   });
 }
-renderList();
 
-/* ------------------ Add / Import / Export ------------------ */
+/* ================= Add / Import / Export ================= */
 document.getElementById("addBtn").addEventListener("click", () => {
   const f = document.getElementById("front").value.trim();
   const b = document.getElementById("back").value.trim();
@@ -160,7 +160,7 @@ document.getElementById("addBtn").addEventListener("click", () => {
 
   cards.push({ front: f, back: b, example: e || undefined });
   if (rev) {
-    // For reverse, we swap; example is optional; we won't try to invent one
+    // Reverse card swaps front/back; example is optional
     cards.push({ front: b, back: f, example: e ? `${f} → ${e}` : undefined });
   }
   document.getElementById("front").value = "";
@@ -210,13 +210,8 @@ document.getElementById("clearBtn").addEventListener("click", () => {
   save();
 });
 
-/* ------------------ Review Flow ------------------ */
+/* ================= Review Flow ================= */
 document.getElementById("startBtn").addEventListener("click", startReview);
-
-let queue = [];
-let current = null;
-let currentSide = "front";
-let lastChecked = false;
 
 function startReview() {
   if (!cards.length) {
@@ -244,26 +239,21 @@ function nextCard() {
   lastChecked = false;
 }
 
-/* ------------------ Checking answers ------------------ */
+/* ================= Checking answers ================= */
 function checkAnswer() {
   if (current === null) return;
 
-  // (1) base expected from opposite side
+  // Base expected from opposite side
   const rawExpected = currentSide === "front" ? cards[current].back : cards[current].front;
   const expectedList = splitAnswers(rawExpected); // e.g., "sun, day" -> ["sun","day"]
 
-  // (2) add Japanese tokens from example (kanji/kana like 日本 / にほん)
+  // Add Japanese tokens from example (日本 / にほん, etc.)
   const jpTokens = japaneseFromExample(cards[current].example);
-  // Add both raw jp tokens and normalized jp tokens (normalize won't change kana/kanji, but keep consistent)
-  jpTokens.forEach(t => {
-    expectedList.push(normalize(t)); // for consistency with user normalization
-  });
+  jpTokens.forEach(t => expectedList.push(normalize(t)));
 
-  // (3) compare
   const user = normalize(inputEl.value);
   const correct = expectedList.some(ans => ans === user);
 
-  // Show result + example (example never affects correctness)
   const example = cards[current].example ? `<div class="text-sm text-gray-700 mt-1">${cards[current].example}</div>` : "";
   resultEl.innerHTML = `
     <div class="p-2 rounded ${correct ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
@@ -289,5 +279,3 @@ inputEl.addEventListener("keydown", (ev) => {
 </script>
 </body>
 </html>
-
-
