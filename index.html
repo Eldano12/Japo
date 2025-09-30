@@ -83,9 +83,9 @@ let cards = JSON.parse(localStorage.getItem("cards") || "[]");
 // (Optional) Auto-load from kanji.json the first time (uncomment to use)
 if (!localStorage.getItem("cards")) {
   fetch("kanji.json")
-     .then(res => res.json())
-     .then(data => { cards = data; save(); renderList(); })
-     .catch(err => console.error("Error loading default deck:", err));
+    .then(res => res.json())
+    .then(data => { cards = data; save(); renderList(); })
+    .catch(err => console.error("Error loading default deck:", err));
 }
 
 let queue = [];
@@ -287,3 +287,4 @@ inputEl.addEventListener("keydown", (ev) => {
 </script>
 </body>
 </html>
+
