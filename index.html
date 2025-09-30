@@ -134,16 +134,15 @@ function normalize(s) {
 }
 
 function checkAnswer() {
-  if (current === null) return;
   const input = normalize(document.getElementById("answerInput").value);
-  const expected = currentSide === "front" ? cards[current].back : cards[current].front;
-  const answers = expected.split(/[,;/]/).map(a=>normalize(a));
-  const correct = answers.includes(input);
-  document.getElementById("result").innerHTML =
-    `<div class="p-2 rounded ${correct?'bg-green-100 text-green-800':'bg-red-100 text-red-800'}">
-      ${correct? '✅ Correct!':'❌ Not quite.'} Expected: <b>${expected}</b>
-    </div>`;
-  lastChecked = true;
+  const expected = cards[current].back;
+  const example = cards[current].example || ""; // fallback if no example
+
+  if (input === normalize(expected)) {
+    result.innerHTML = `✅ Correct! ${cards[current].front} = ${expected} <br><small>${example}</small>`;
+  } else {
+    result.innerHTML = `❌ Not quite. ${cards[current].front} = ${expected} <br><small>${example}</small>`;
+  }
 }
 
 function exportJSON() {
@@ -199,5 +198,6 @@ document.getElementById("answerInput").addEventListener("keydown", (ev) => {
 </script>
 </body>
 </html>
+
 
 
