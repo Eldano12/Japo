@@ -59,7 +59,7 @@
 let cards = JSON.parse(localStorage.getItem("cards") || "[]");
 // If no cards exist in localStorage, auto-load kanken10.json
 if (!localStorage.getItem("cards")) {
-  fetch("kanken10.json")
+  fetch("kanji.json")
     .then(res => res.json())
     .then(data => {
       cards = data;
@@ -199,4 +199,5 @@ document.getElementById("answerInput").addEventListener("keydown", (ev) => {
 </script>
 </body>
 </html>
+
 
